@@ -1,0 +1,12 @@
+allprojects {
+    group = 'slopui'
+    version = '0.2.0'
+    repositories { mavenCentral() }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
+    // release 21: the core can be taken in by projects on Java 21 and up
+    tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
+}

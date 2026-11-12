@@ -1,0 +1,3 @@
+rootProject.name = 'slopui'
+// SlopUI: core (the toolkit: plain Java, no GL), gl (the LWJGL backend: painter, TrueType fonts, GLFW host), demo.
+include 'core', 'gl', 'demo'

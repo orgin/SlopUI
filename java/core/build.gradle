@@ -1,0 +1,5 @@
+// The toolkit itself: plain Java, no GL and no AWT/Swing.
+jar { manifest { attributes 'Implementation-Title': 'slopui-core', 'Implementation-Version': project.version } }
+
+// The built-in themes (../themes) as resources: slopui/themes/*.json
+processResources { from("${rootDir}/../themes") { into 'slopui/themes' } }

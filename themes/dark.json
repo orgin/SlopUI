@@ -1,0 +1,20 @@
+// Dark: grey panels, blue highlights, flat (no texture, no cut corners).
+{
+  "name": "Dark",
+  "colours": {
+    "text": "#E0E0E0", "textDim": "#909090", "textDisabled": "#606060", "textBright": "#FFFFFF",
+    "accent": "#6AA8FF", "accentSoft": "#8AA0C0",
+    "panelTop": "#F2343434", "panelBottom": "#F2282828", "panelBorder": "#808080", "panelLight": "#20FFFFFF",
+    "titleTop": "#3468B0", "titleBottom": "#24508C", "titleText": "#FFFFFF",
+    "barTop": "#F0262626", "barBottom": "#F01C1C1C",
+    "buttonTop": "#4A4A4A", "buttonBottom": "#383838", "hoverTop": "#3A6AAA", "hoverBottom": "#2A5A9A",
+    "pressTop": "#1E3E6E", "pressBottom": "#2A4A7A", "buttonBorder": "#707070", "buttonText": "#F0F0F0",
+    "fieldTop": "#181818", "fieldBottom": "#202020", "fieldBorder": "#606060", "focus": "#6AA8FF",
+    "selection": "#2A5A9A", "selectionText": "#FFFFFF", "rowHover": "#30FFFFFF",
+    "trackTop": "#141414", "trackBottom": "#202020", "fillTop": "#7AB4FF", "fillBottom": "#2A5A9A",
+    "glow": "#606AA8FF", "shadow": "#A0000000", "warning": "#FF7070",
+    "tooltipTop": "#F8404040", "tooltipBottom": "#F8303030", "shade": "#90000000", "rowAlt": "#0CFFFFFF",
+    "texture": "#FFFFFF"
+  },
+  "sizes": { "cut": 0, "textureStrength": 0, "glowSize": 3 }
+}

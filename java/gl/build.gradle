@@ -1,0 +1,7 @@
+// The LWJGL backend: GlPainter (batched triangles), TtfFont (stb_truetype), GlfwHost (window, input, fullscreen).
+def lwjglVersion = '3.4.3'
+dependencies {
+    api project(':core')
+    api platform("org.lwjgl:lwjgl-bom:${lwjglVersion}")
+    for (m in ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-stb']) api "org.lwjgl:${m}"
+}

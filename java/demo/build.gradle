@@ -1,0 +1,50 @@
+// The test jar: the toolkit over mockup game screens. dist/slopui-demo-<version>.jar (5 newest kept).
+plugins { id 'application' }
+def lwjglNatives = ['natives-linux', 'natives-linux-arm64', 'natives-windows', 'natives-macos', 'natives-macos-arm64']
+dependencies {
+    implementation project(':gl')
+    for (m in ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-stb']) for (n in lwjglNatives) runtimeOnly "org.lwjgl:${m}::${n}"
+}
+application { mainClass = 'slopui.demo.Demo' }
+tasks.withType(JavaExec).configureEach { javaLauncher = javaToolchains.launcherFor(java.toolchain) }
+
+def buildTimeDir = layout.buildDirectory.dir('generated/buildtime')
+def buildTime = tasks.register('buildTime') {
+    outputs.dir buildTimeDir
+    outputs.upToDateWhen { false }
+    doLast {
+        def f = buildTimeDir.get().file('slopui/demo/buildtime.txt').asFile
+        f.parentFile.mkdirs()
+        f.text = java.time.LocalDateTime.now().withNano(0).toString()
+    }
+}
+sourceSets.main.resources.srcDir(buildTime)
+
+tasks.named('jar') {
+    archiveBaseName = 'slopui-demo'
+    dependsOn configurations.runtimeClasspath
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    exclude 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA', 'META-INF/INDEX.LIST', 'module-info.class',
+            'META-INF/versions/*/module-info.class'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': 'slopui.demo.Demo', 'Enable-Native-Access': 'ALL-UNNAMED', 'Multi-Release': 'true',
+                   'Implementation-Title': 'SlopUI demo', 'Implementation-Version': project.version
+    }
+}
+
+tasks.register('dist', Copy) {
+    from tasks.named('jar')
+    into "${rootDir}/../dist"
+    doLast {
+        def jars = file("${rootDir}/../dist").listFiles().findAll { it.name ==~ /slopui-demo-\d+(\.\d+)*\.jar/ }
+        def ver = { f -> (f.name - 'slopui-demo-' - '.jar').tokenize('.').collect { it as int } }
+        jars.sort { a, b ->
+            def x = ver(a), y = ver(b)
+            for (int i = 0; i < Math.min(x.size(), y.size()); i++) if (x[i] != y[i]) return x[i] <=> y[i]
+            x.size() <=> y.size()
+        }
+        jars.dropRight(5).each { it.delete() }
+        println "dist: slopui-demo-${project.version}.jar, kept ${Math.min(5, jars.size())} demo jars"
+    }
+}
