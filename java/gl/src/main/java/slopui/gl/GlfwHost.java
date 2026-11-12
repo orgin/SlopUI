@@ -21,7 +21,7 @@ public final class GlfwHost implements Host, AutoCloseable {
     private final long window;
     private Ui ui;
     private GlPainter painter;
-    private final long[] cursors = new long[6];
+    private final long[] cursors = new long[7];
     private int cursorShown = -1;
     private int uiScale;            // 0 Auto, else UI units per... device pixels per unit
     private boolean fullscreen;
@@ -49,7 +49,7 @@ public final class GlfwHost implements Host, AutoCloseable {
         glfwSwapInterval(1);
         painter = new GlPainter();
         int[] shapes = {GLFW_ARROW_CURSOR, GLFW_IBEAM_CURSOR, GLFW_HAND_CURSOR, GLFW_HRESIZE_CURSOR,
-                GLFW_VRESIZE_CURSOR, GLFW_CROSSHAIR_CURSOR};
+                GLFW_VRESIZE_CURSOR, GLFW_CROSSHAIR_CURSOR, GLFW_RESIZE_NWSE_CURSOR};
         for (int i = 0; i < shapes.length; i++) {
             cursors[i] = glfwCreateStandardCursor(shapes[i]);
         }

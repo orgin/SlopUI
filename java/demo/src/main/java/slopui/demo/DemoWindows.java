@@ -66,7 +66,7 @@ final class DemoWindows {
         tabs.add("Text", textPage());
         tabs.add("Panes", panesPage());
         Window[] w = new Window[1];
-        w[0] = new Window("Widget gallery", tabs).width(440).modal(false);
+        w[0] = new Window("Widget gallery", tabs).width(440).modal(false).resizable(true);
         w[0].defaultButton(new Button("Close", () -> ui.close(w[0])));
         return w[0];
     }
@@ -275,7 +275,7 @@ final class DemoWindows {
         TextField single = new TextField("One line").placeholder("...");
         Window[] w = new Window[1];
         w[0] = new Window("Text editors", Box.column(new Label("Single line"), single, new Label("Multiline"), area).gap(4))
-                .width(360).modal(false);
+                .width(360).modal(false).resizable(true);
         w[0].defaultButton(new Button("Close", () -> ui.close(w[0])));
         return w[0];
     }

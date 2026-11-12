@@ -52,7 +52,7 @@ public:
 };
 
 namespace Cursor {
-inline constexpr int ARROW = 0, TEXT = 1, HAND = 2, RESIZE_H = 3, RESIZE_V = 4, MOVE = 5;
+inline constexpr int ARROW = 0, TEXT = 1, HAND = 2, RESIZE_H = 3, RESIZE_V = 4, MOVE = 5, RESIZE_DIAGONAL = 6;
 }
 
 /** Key codes and modifiers (GLFW's values, as the Java version; a host maps its own to these). */

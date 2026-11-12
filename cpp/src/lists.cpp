@@ -188,7 +188,10 @@ bool Dropdown::key(Ui& ui, int key, int) {
 // Table
 
 Table::Table(std::vector<std::string> headers, std::vector<float> weights, int visibleRows)
-    : headers_(std::move(headers)), weights_(weights), initialWeights_(std::move(weights)), visibleRows_(visibleRows) {}
+    : headers_(std::move(headers)), weights_(weights), initialWeights_(std::move(weights)), visibleRows_(visibleRows) {
+    colOrder_.resize(headers_.size());
+    std::iota(colOrder_.begin(), colOrder_.end(), 0);
+}
 
 namespace {
 constexpr float MIN_COLUMN = 16, GRIP = 3;
@@ -206,7 +209,37 @@ int Table::boundaryAt(float mx, float my) const {
     return -1;
 }
 
+void Table::release(Ui& ui, float mx, float my, int) {
+    dragThumb_ = false;
+    resizing_ = -1;
+    if (pressCol_ >= 0) {
+        if (movingCol_) {
+            moveColumn(pressCol_, dropAt_);
+        } else if (my >= y && my < y + headH(ui) && mx >= lastColX_[pressCol_] && mx < lastColX_[pressCol_ + 1]) {
+            int col = colOrder_[pressCol_];
+            descending_ = sortColumn_ == col && !descending_;
+            sortColumn_ = col;
+            resort();
+        }
+        pressCol_ = -1;
+        movingCol_ = false;
+    }
+}
+
+void Table::moveColumn(int from, int gap) {
+    int to = gap > from ? gap - 1 : gap;
+    if (to == from || to < 0) {
+        return;
+    }
+    int col = colOrder_[from];
+    colOrder_.erase(colOrder_.begin() + from);
+    colOrder_.insert(colOrder_.begin() + to, col);
+}
+
 int Table::cursor(float mx, float my) const {
+    if (movingCol_) {
+        return Cursor::MOVE;
+    }
     return resizing_ > 0 || boundaryAt(mx, my) > 0 ? Cursor::RESIZE_H : Cursor::ARROW;
 }
 
@@ -288,7 +321,7 @@ std::vector<float> Table::colX(Ui& ui) const {
     std::vector<float> cx(headers_.size() + 1);
     cx[0] = x + 1;
     for (size_t c = 0; c < headers_.size(); c++) {
-        cx[c + 1] = cx[c] + inner * weights_[c] / sum;
+        cx[c + 1] = cx[c] + inner * weights_[colOrder_[c]] / sum;
     }
     return cx;
 }
@@ -344,13 +377,17 @@ void Table::draw(Ui& ui, Painter& p) {
     vgradient(p, x + 1, y + 1, w - 2, hh - 1, t.c[Theme::BUTTON_TOP], t.c[Theme::BUTTON_BOTTOM]);
     fill(p, x + 1, y + hh, w - 2, 1, t.c[Theme::PANEL_BORDER]);
     for (size_t c = 0; c < nc; c++) {
-        bool on = grip < 0 && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
-        if (on) {
+        int col = colOrder_[c];
+        bool on = grip < 0 && !movingCol_ && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
+        if (on || (pressCol_ == int(c) && !movingCol_)) {
             vgradient(p, cx[c], y + 1, cx[c + 1] - cx[c], hh - 1, t.c[Theme::HOVER_TOP], t.c[Theme::HOVER_BOTTOM]);
         }
-        auto s = Skin::fit(f, toU32(headers_[c]), cx[c + 1] - cx[c] - 14);
-        f.draw(p, s, cx[c] + 4, y + (hh - f.lineHeight()) / 2, int(c) == sortColumn_ ? t.c[Theme::ACCENT] : t.c[Theme::TEXT_BRIGHT]);
-        if (int(c) == sortColumn_) {
+        if (movingCol_ && pressCol_ == int(c)) {
+            fill(p, cx[c], y + 1, cx[c + 1] - cx[c], h - 2, 0x30000000);
+        }
+        auto s = Skin::fit(f, toU32(headers_[col]), cx[c + 1] - cx[c] - 14);
+        f.draw(p, s, cx[c] + 4, y + (hh - f.lineHeight()) / 2, col == sortColumn_ ? t.c[Theme::ACCENT] : t.c[Theme::TEXT_BRIGHT]);
+        if (col == sortColumn_) {
             Skin::chevron(p, cx[c + 1] - 7, y + hh / 2, 5, descending_ ? 0 : 2, t.c[Theme::ACCENT]);
         }
         if (c > 0) {
@@ -380,7 +417,7 @@ void Table::draw(Ui& ui, Painter& p) {
             fill(p, x + 1, ry, rw, rh, t.c[Theme::ROW_ALT]);
         }
         for (size_t c = 0; c < nc; c++) {
-            auto s = Skin::fit(f, toU32(rows_[r][c]), cx[c + 1] - cx[c] - 8);
+            auto s = Skin::fit(f, toU32(rows_[r][colOrder_[c]]), cx[c + 1] - cx[c] - 8);
             f.draw(p, s, cx[c] + 4, ry + (rh - f.lineHeight()) / 2, r == selected_ ? t.c[Theme::SELECTION_TEXT] : t.c[Theme::TEXT]);
         }
     }
@@ -388,6 +425,17 @@ void Table::draw(Ui& ui, Painter& p) {
         f.draw(p, "(empty)", x + (w - f.width("(empty)")) / 2, top + 6, t.c[Theme::TEXT_DIM]);
     }
     p.popClip();
+    if (movingCol_ && pressCol_ >= 0) {
+        fill(p, cx[dropAt_] - 1, y + 1, 3, h - 2, alpha(t.c[Theme::ACCENT], 0.8f));
+        float gw = cx[pressCol_ + 1] - cx[pressCol_];
+        float gx = std::clamp(ui.mx - (pressX_ - cx[pressCol_]), x, x + w - gw);
+        auto ghost = cut(gx, y + 1, gw, hh - 1, 3, 0, 3, 0);
+        glow(p, ghost, 4, alpha(t.c[Theme::GLOW], 0.8f));
+        poly(p, ghost, t.c[Theme::HOVER_TOP], t.c[Theme::HOVER_BOTTOM], y, hh);
+        outline(p, ghost, 1, t.c[Theme::ACCENT]);
+        f.draw(p, Skin::fit(f, toU32(headers_[colOrder_[pressCol_]]), gw - 8), gx + 4, y + (hh - f.lineHeight()) / 2,
+               t.c[Theme::TEXT_BRIGHT]);
+    }
     float total = rows_.size() * rh, view = viewH(ui), bw = t.s[Theme::SCROLLBAR], bx = x + w - bw - 1;
     vgradient(p, bx, top, bw, view, t.c[Theme::TRACK_TOP], t.c[Theme::TRACK_BOTTOM]);
     if (total > view) {
@@ -408,8 +456,8 @@ bool Table::press(Ui& ui, float mx, float my, int button, int clicks) {
         } else {
             resizing_ = b;
             resizeFrom_ = mx;
-            weightA_ = weights_[b - 1];
-            weightB_ = weights_[b];
+            weightA_ = weights_[colOrder_[b - 1]];
+            weightB_ = weights_[colOrder_[b]];
         }
         return true;
     }
@@ -423,9 +471,9 @@ bool Table::press(Ui& ui, float mx, float my, int button, int clicks) {
         auto cx = colX(ui);
         for (size_t c = 0; c < headers_.size(); c++) {
             if (mx >= cx[c] && mx < cx[c + 1]) {
-                descending_ = sortColumn_ == int(c) && !descending_;
-                sortColumn_ = int(c);
-                resort();
+                pressCol_ = int(c);     // sorts on the release, moves the column if dragged
+                pressX_ = mx;
+                movingCol_ = false;
             }
         }
         return true;
@@ -446,8 +494,24 @@ void Table::drag(Ui& ui, float mx, float my) {
         float perWeight = (w - ui.theme.s[Theme::SCROLLBAR] - 2) / sum;
         float minW = MIN_COLUMN / perWeight, pair = weightA_ + weightB_;
         float a = std::clamp(weightA_ + (mx - resizeFrom_) / perWeight, minW, pair - minW);
-        weights_[resizing_ - 1] = a;
-        weights_[resizing_] = pair - a;
+        weights_[colOrder_[resizing_ - 1]] = a;
+        weights_[colOrder_[resizing_]] = pair - a;
+        return;
+    }
+    if (pressCol_ >= 0) {
+        if (!movingCol_ && std::abs(mx - pressX_) > 4) {
+            movingCol_ = true;
+        }
+        if (movingCol_) {
+            auto cx = colX(ui);
+            int best = 0;
+            for (int g = 1; g < int(cx.size()); g++) {
+                if (std::abs(mx - cx[g]) < std::abs(mx - cx[best])) {
+                    best = g;
+                }
+            }
+            dropAt_ = best;
+        }
         return;
     }
     if (dragThumb_) {

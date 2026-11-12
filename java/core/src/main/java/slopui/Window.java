@@ -7,7 +7,8 @@ import java.util.function.Supplier;
  * A window over the game: a title bar to drag it by (or none: a fixed pane), its content in a scroll pane
  * (whatever doesn't fit the window scrolls) and a row of buttons that stacks when narrow. At most
  * MAX_WINDOW of the UI; kept inside it when the UI changes size. Modal windows shade and block what is
- * under them. Enter presses the default button, Escape cancels.
+ * under them. Enter presses the default button, Escape cancels. Resizable (an option): the right and bottom
+ * edges and the grip in the bottom-right corner drag its size; it then keeps that size (within the UI).
  */
 public class Window extends Container {
     private Supplier<String> title;
@@ -21,6 +22,13 @@ public class Window extends Container {
     private float dragDX, dragDY;
     private boolean dragging, closePressed;
     private float open;
+    private boolean resizable;
+    /** The size the player dragged it to (0: its own). */
+    private float userW, userH;
+    /** While resizing: 1 right edge, 2 bottom edge, 3 the corner (0: not); the pointer's offset from the edge. */
+    private int sizing;
+    private float sizeDX, sizeDY;
+    private static final float EDGE = 4, GRIP = 10;
 
     public Window(Supplier<String> title, Widget content) {
         this.title = title;
@@ -45,6 +53,17 @@ public class Window extends Container {
     public Window titleBar(boolean t) {
         titleBar = t;
         return this;
+    }
+
+    /** The player may drag its right and bottom edges and its corner to resize it. */
+    public Window resizable(boolean r) {
+        resizable = r;
+        return this;
+    }
+
+    /** Back to its own size. */
+    public void resetSize() {
+        userW = userH = 0;
     }
 
     public Window closable(boolean c) {
@@ -139,8 +158,8 @@ public class Window extends Container {
         float top = ui.contentTop();
         float maxW = ui.width * ui.theme.s[Theme.MAX_WINDOW];
         float maxH = (ui.height - top) * ui.theme.s[Theme.MAX_WINDOW];
-        float pw = Math.min(maxW, Math.max(Math.min(minWidth(ui), maxW), prefWidth(ui)));
-        float ph = Math.min(maxH, prefHeight(ui, pw));
+        float pw = Math.min(maxW, Math.max(Math.min(minWidth(ui), maxW), userW > 0 ? userW : prefWidth(ui)));
+        float ph = userH > 0 ? Math.min(maxH, Math.max(minHeight(ui, pw), userH)) : Math.min(maxH, prefHeight(ui, pw));
         float px = x, py = y;
         if (!placed) {
             px = (ui.width - pw) / 2;
@@ -152,6 +171,32 @@ public class Window extends Container {
         py = Math.max(top, Math.min(py, ui.height - ph));
         setBounds(Math.round(px), Math.round(py), Math.round(pw), Math.round(ph));
         layout(ui);
+    }
+
+    /** The least height when resized: the title, the buttons and a little content. */
+    private float minHeight(Ui ui, float width) {
+        float pad = ui.theme.s[Theme.PAD];
+        float bh = hasButtons() ? buttons.prefHeight(ui, width - 2 * pad) + pad : 0;
+        return titleH(ui) + 2 * pad + bh + 24;
+    }
+
+    /** The resizing edge at the point: 1 right, 2 bottom, 3 corner, 0 none. */
+    private int edgeAt(float mx, float my) {
+        if (!resizable || !contains(mx, my)) {
+            return 0;
+        }
+        if (mx >= x + w - GRIP && my >= y + h - GRIP) {
+            return 3;
+        }
+        return (mx >= x + w - EDGE ? 1 : 0) | (my >= y + h - EDGE ? 2 : 0);
+    }
+
+    @Override
+    public Widget hit(float px, float py) {
+        if (visible && edgeAt(px, py) != 0) {
+            return this;        // (the edges before the content under them)
+        }
+        return super.hit(px, py);
     }
 
     @Override
@@ -209,6 +254,14 @@ public class Window extends Container {
         if (rise > 0.01f) {
             p.popClip();
         }
+        if (resizable) {        // the grip: three short diagonal lines in the corner
+            boolean on = sizing != 0 || ui.hover == this && edgeAt(ui.mx, ui.my) != 0;
+            int gc = on ? t.c[Theme.ACCENT] : Shapes.alpha(t.c[Theme.ACCENT_SOFT], 0.7f);
+            float gx = x + w - 2, gy = y + h - 2 + rise;
+            for (int i = 1; i <= 3; i++) {
+                Shapes.line(p, gx - i * 3, gy, gx, gy - i * 3, 1, gc);
+            }
+        }
         p.setOpacity(before);
     }
 
@@ -226,6 +279,15 @@ public class Window extends Container {
             closePressed = true;
             return true;
         }
+        int e = edgeAt(mx, my);
+        if (e != 0) {
+            sizing = e;
+            sizeDX = x + w - mx;
+            sizeDY = y + h - my;
+            userW = w;
+            userH = h;
+            return true;
+        }
         if (titleBar && my < y + titleH(ui)) {
             dragging = true;
             dragDX = mx - x;
@@ -236,6 +298,15 @@ public class Window extends Container {
 
     @Override
     public void drag(Ui ui, float mx, float my) {
+        if (sizing != 0) {
+            if ((sizing & 1) != 0) {
+                userW = Math.max(minWidth(ui), mx + sizeDX - x);
+            }
+            if ((sizing & 2) != 0) {
+                userH = Math.max(minHeight(ui, w), my + sizeDY - y);
+            }
+            return;
+        }
         if (dragging) {
             x = mx - dragDX;
             y = my - dragDY;
@@ -249,11 +320,14 @@ public class Window extends Container {
         }
         closePressed = false;
         dragging = false;
+        sizing = 0;
     }
 
     @Override
     public int cursor(float mx, float my) {
-        return dragging ? Cursor.MOVE : Cursor.ARROW;
+        int e = sizing != 0 ? sizing : edgeAt(mx, my);
+        return e == 3 ? Cursor.RESIZE_DIAGONAL : e == 1 ? Cursor.RESIZE_H : e == 2 ? Cursor.RESIZE_V
+                : dragging ? Cursor.MOVE : Cursor.ARROW;
     }
 
     @Override

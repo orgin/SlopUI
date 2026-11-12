@@ -10,6 +10,8 @@ import java.util.function.IntConsumer;
  * numbers), one row selected (click, arrows, Page Up/Down, Home/End), a double click or Enter activates it.
  * Column widths share the width by weight; text that doesn't fit ends in "...". Dragging the separator between
  * two headers moves width between those columns (each keeps MIN_COLUMN); a double click on it: the first widths.
+ * Dragging a header moves its column (a ghost header follows the pointer, a mark shows where it goes); a click
+ * on a header (pressed and released without moving) sorts.
  * Scrolls with a bar.
  */
 public class Table extends Widget {
@@ -22,6 +24,12 @@ public class Table extends Widget {
     /** From the last draw, for the pointer's shape (cursor has no Ui). */
     private float[] lastColX = new float[0];
     private float lastHeadH;
+    /** Display order: the column shown at each position. */
+    private final int[] colOrder;
+    /** A header pressed (display position; -1: none), where, and whether it is being moved and to which gap. */
+    private int pressCol = -1, dropAt = -1;
+    private float pressX;
+    private boolean movingCol;
     private final List<String[]> rows = new ArrayList<>();
     private final List<Integer> order = new ArrayList<>();
     private int selected = -1;          // a row index (rows), not a position
@@ -37,6 +45,10 @@ public class Table extends Widget {
         this.headers = headers;
         this.weights = weights.clone();
         this.initialWeights = weights.clone();
+        colOrder = new int[headers.length];
+        for (int i = 0; i < colOrder.length; i++) {
+            colOrder[i] = i;
+        }
         this.visibleRows = visibleRows;
     }
 
@@ -138,7 +150,7 @@ public class Table extends Widget {
         float[] cx = new float[headers.length + 1];
         cx[0] = x + 1;
         for (int c = 0; c < headers.length; c++) {
-            cx[c + 1] = cx[c] + inner * weights[c] / sum;
+            cx[c + 1] = cx[c] + inner * weights[colOrder[c]] / sum;
         }
         return cx;
     }
@@ -180,14 +192,18 @@ public class Table extends Widget {
         Shapes.vgradient(p, x + 1, y + 1, w - 2, hh - 1, t.c[Theme.BUTTON_TOP], t.c[Theme.BUTTON_BOTTOM]);
         Shapes.fill(p, x + 1, y + hh, w - 2, 1, t.c[Theme.PANEL_BORDER]);
         for (int c = 0; c < headers.length; c++) {
-            boolean on = grip < 0 && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
-            if (on) {
+            int col = colOrder[c];
+            boolean on = grip < 0 && !movingCol && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
+            if (on || pressCol == c && !movingCol) {
                 Shapes.vgradient(p, cx[c], y + 1, cx[c + 1] - cx[c], hh - 1, t.c[Theme.HOVER_TOP], t.c[Theme.HOVER_BOTTOM]);
             }
+            if (movingCol && pressCol == c) {      // the moving column's place, dimmed
+                Shapes.fill(p, cx[c], y + 1, cx[c + 1] - cx[c], h - 2, 0x30000000);
+            }
             float cw = cx[c + 1] - cx[c];
-            String s = Skin.fit(f, headers[c], cw - 14);
-            f.draw(p, s, cx[c] + 4, y + (hh - f.lineHeight()) / 2, c == sortColumn ? t.c[Theme.ACCENT] : t.c[Theme.TEXT_BRIGHT]);
-            if (c == sortColumn) {
+            String s = Skin.fit(f, headers[col], cw - 14);
+            f.draw(p, s, cx[c] + 4, y + (hh - f.lineHeight()) / 2, col == sortColumn ? t.c[Theme.ACCENT] : t.c[Theme.TEXT_BRIGHT]);
+            if (col == sortColumn) {
                 Skin.chevron(p, cx[c + 1] - 7, y + hh / 2, 5, descending ? 0 : 2, t.c[Theme.ACCENT]);
             }
             if (c > 0) {
@@ -217,7 +233,7 @@ public class Table extends Widget {
                 Shapes.fill(p, x + 1, ry, cx[headers.length] - x - 1, rh, t.c[Theme.ROW_ALT]);
             }
             for (int c = 0; c < headers.length; c++) {
-                String s = Skin.fit(f, rows.get(r)[c], cx[c + 1] - cx[c] - 8);
+                String s = Skin.fit(f, rows.get(r)[colOrder[c]], cx[c + 1] - cx[c] - 8);
                 f.draw(p, s, cx[c] + 4, ry + (rh - f.lineHeight()) / 2,
                         r == selected ? t.c[Theme.SELECTION_TEXT] : t.c[Theme.TEXT]);
             }
@@ -227,6 +243,16 @@ public class Table extends Widget {
             f.draw(p, s, x + (w - f.width(s)) / 2, top + 6, t.c[Theme.TEXT_DIM]);
         }
         p.popClip();
+        if (movingCol && pressCol >= 0) {
+            // where the column goes, and the header following the pointer
+            Shapes.fill(p, cx[dropAt] - 1, y + 1, 3, h - 2, Shapes.alpha(t.c[Theme.ACCENT], 0.8f));
+            float gw = cx[pressCol + 1] - cx[pressCol], gx = Math.max(x, Math.min(x + w - gw, ui.mx - (pressX - cx[pressCol])));
+            float[] ghost = Shapes.cut(gx, y + 1, gw, hh - 1, 3, 0, 3, 0);
+            Shapes.glow(p, ghost, 4, Shapes.alpha(t.c[Theme.GLOW], 0.8f));
+            Shapes.poly(p, ghost, t.c[Theme.HOVER_TOP], t.c[Theme.HOVER_BOTTOM], y, hh);
+            Shapes.outline(p, ghost, 1, t.c[Theme.ACCENT]);
+            f.draw(p, Skin.fit(f, headers[colOrder[pressCol]], gw - 8), gx + 4, y + (hh - f.lineHeight()) / 2, t.c[Theme.TEXT_BRIGHT]);
+        }
         // the bar
         float total = rows.size() * rh, view = viewH(ui), bw = t.s[Theme.SCROLLBAR];
         float bx = x + w - bw - 1;
@@ -267,8 +293,31 @@ public class Table extends Widget {
         return -1;
     }
 
+    /** The column at display position 'from' moved to the gap 'gap' (0: first ... n: last). */
+    private void moveColumn(int from, int gap) {
+        int to = gap > from ? gap - 1 : gap;
+        if (to == from || to < 0) {
+            return;
+        }
+        int col = colOrder[from];
+        if (to > from) {
+            System.arraycopy(colOrder, from + 1, colOrder, from, to - from);
+        } else {
+            System.arraycopy(colOrder, to, colOrder, to + 1, from - to);
+        }
+        colOrder[to] = col;
+    }
+
+    /** The column shown at each position (after the player moved columns). */
+    public int[] columnOrder() {
+        return colOrder.clone();
+    }
+
     @Override
     public int cursor(float mx, float my) {
+        if (movingCol) {
+            return Cursor.MOVE;
+        }
         return resizing > 0 || boundaryAt(mx, my) > 0 ? Cursor.RESIZE_H : Cursor.ARROW;
     }
 
@@ -284,8 +333,8 @@ public class Table extends Widget {
             } else {
                 resizing = b;
                 resizeFrom = mx;
-                weightA = weights[b - 1];
-                weightB = weights[b];
+                weightA = weights[colOrder[b - 1]];
+                weightB = weights[colOrder[b]];
             }
             return true;
         }
@@ -299,9 +348,9 @@ public class Table extends Widget {
             float[] cx = colX(ui);
             for (int c = 0; c < headers.length; c++) {
                 if (mx >= cx[c] && mx < cx[c + 1]) {
-                    descending = sortColumn == c && !descending;
-                    sortColumn = c;
-                    resort();
+                    pressCol = c;       // sorts on the release, moves the column if dragged
+                    pressX = mx;
+                    movingCol = false;
                 }
             }
             return true;
@@ -326,8 +375,24 @@ public class Table extends Widget {
             float perWeight = (w - ui.theme.s[Theme.SCROLLBAR] - 2) / sum;     // UI units per weight
             float min = MIN_COLUMN / perWeight, pair = weightA + weightB;
             float a = Math.max(min, Math.min(pair - min, weightA + (mx - resizeFrom) / perWeight));
-            weights[resizing - 1] = a;
-            weights[resizing] = pair - a;
+            weights[colOrder[resizing - 1]] = a;
+            weights[colOrder[resizing]] = pair - a;
+            return;
+        }
+        if (pressCol >= 0) {
+            if (!movingCol && Math.abs(mx - pressX) > 4) {
+                movingCol = true;
+            }
+            if (movingCol) {        // the gap nearest the pointer
+                float[] cx = colX(ui);
+                int best = 0;
+                for (int g = 1; g < cx.length; g++) {
+                    if (Math.abs(mx - cx[g]) < Math.abs(mx - cx[best])) {
+                        best = g;
+                    }
+                }
+                dropAt = best;
+            }
             return;
         }
         if (dragThumb) {
@@ -342,6 +407,18 @@ public class Table extends Widget {
     public void release(Ui ui, float mx, float my, int button) {
         dragThumb = false;
         resizing = -1;
+        if (pressCol >= 0) {
+            if (movingCol) {
+                moveColumn(pressCol, dropAt);
+            } else if (my >= y && my < y + headH(ui) && mx >= lastColX[pressCol] && mx < lastColX[pressCol + 1]) {
+                int col = colOrder[pressCol];
+                descending = sortColumn == col && !descending;
+                sortColumn = col;
+                resort();
+            }
+            pressCol = -1;
+            movingCol = false;
+        }
     }
 
     @Override

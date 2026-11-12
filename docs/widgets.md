@@ -236,7 +236,8 @@ Rows of text in columns.
 
 | Input | Does |
 |---|---|
-| Click a header | Sorts by it; again: the other way. Numbers sort as numbers. |
+| Click a header | Sorts by it on the release; again: the other way. Numbers sort as numbers. |
+| Drag a header | Moves its column: a copy of the header follows the pointer, and an accent line shows where the column will go. |
 | Drag a separator between headers | Moves width between the two columns beside it (each keeps at least 16 units). The pointer shows a resize arrow there. |
 | Double click a separator | Puts the column widths back to the ones given. |
 | Click a row, Up/Down, Page Up/Down, Home/End | Selects a row. |
@@ -245,7 +246,8 @@ Rows of text in columns.
 
 Columns share the width by weight (resizing changes the weights, so the columns keep their shares when the
 table's width changes), and text that doesn't fit ends in "...". `selected()` and the callbacks use
-the row's index in the list you gave, whatever the sort.
+the row's index in the list you gave, whatever the sort. Moving columns only changes the display:
+`columnOrder()` gives the column shown at each position, so you can save the player's order.
 
 ```java
 Table t = new Table(new String[] {"Name", "Saved", "Credits"}, new float[] {3, 2, 1}, 8);   // 8 rows high

@@ -10,7 +10,8 @@ Window w = new Window("Preferences", content)
         .width(420)              // the width it asks for (default: the content's)
         .modal(true)             // default: shades and blocks what is under it
         .closable(true)          // the × in the title bar (runs onCancel)
-        .titleBar(true);         // false: a fixed pane, no title bar, can't be dragged
+        .titleBar(true)          // false: a fixed pane, no title bar, can't be dragged
+        .resizable(true);        // the player may drag the right and bottom edges and the corner grip
 w.onCancel(() -> ui.close(w))    // Escape and ×; default: closes the window
         .onClose(() -> saveLayout());  // after it closed
 w.button(new Button("Cancel", () -> ui.close(w)));
@@ -30,6 +31,10 @@ ui.open(w);
 - **Place:** centred when opened (`recentre()` centres it again the next time), and kept inside the UI.
 - **Order:** a click raises a window, unless a modal window is open.
 - **Opening:** it fades in and rises slightly over `openTime`.
+- **Resizing** (`resizable(true)`, off by default): the right edge, the bottom edge and the grip in the bottom-right
+  corner drag the window's size, and the pointer shows a resize arrow there. The window keeps the size it was
+  dragged to, at least its least width and room for its title, buttons and a little content, and at most 92% of
+  the UI; the content scrolls or stretches to fill it. `resetSize()` goes back to its own size.
 - **Focus:** opening a window focuses its first text field.
 
 ### Panes

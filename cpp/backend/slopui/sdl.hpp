@@ -99,7 +99,7 @@ private:
     SDL_GLContextState* gl_ = nullptr;
     std::unique_ptr<GlPainter> painter_;
     Ui* ui_ = nullptr;
-    SDL_Cursor* cursors_[6] = {};
+    SDL_Cursor* cursors_[7] = {};
     int cursorShown_ = -1, uiScale_ = 0;
     bool fullscreen_ = false, closing_ = false;
     std::uint64_t last_ = 0;

@@ -590,7 +590,7 @@ std::shared_ptr<Window> Demo::gallery() {
         .add("Text", textPage()).add("Panes", panesPage());
     auto r = winRef();
     auto w = make<Window>("Widget gallery", tabs);
-    w->width(440).modal(false).defaultButton(make<Button>("Close", closer(ui, r)));
+    w->width(440).modal(false).resizable(true).defaultButton(make<Button>("Close", closer(ui, r)));
     *r = w;
     return w;
 }
@@ -703,7 +703,7 @@ std::shared_ptr<Window> Demo::editors() {
     col->gap(4);
     auto r = winRef();
     auto w = make<Window>("Text editors", col);
-    w->width(360).modal(false).defaultButton(make<Button>("Close", closer(ui, r)));
+    w->width(360).modal(false).resizable(true).defaultButton(make<Button>("Close", closer(ui, r)));
     *r = w;
     return w;
 }

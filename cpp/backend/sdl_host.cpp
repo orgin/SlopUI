@@ -70,8 +70,9 @@ SdlHost::SdlHost(const std::string& title, int w, int h) {
     SDL_GL_SetSwapInterval(1);
     painter_ = std::make_unique<GlPainter>(es);
     SDL_SystemCursor shapes[] = {SDL_SYSTEM_CURSOR_DEFAULT, SDL_SYSTEM_CURSOR_TEXT, SDL_SYSTEM_CURSOR_POINTER,
-                                 SDL_SYSTEM_CURSOR_EW_RESIZE, SDL_SYSTEM_CURSOR_NS_RESIZE, SDL_SYSTEM_CURSOR_MOVE};
-    for (int i = 0; i < 6; i++) {
+                                 SDL_SYSTEM_CURSOR_EW_RESIZE, SDL_SYSTEM_CURSOR_NS_RESIZE, SDL_SYSTEM_CURSOR_MOVE,
+                                 SDL_SYSTEM_CURSOR_NWSE_RESIZE};
+    for (int i = 0; i < 7; i++) {
         cursors_[i] = SDL_CreateSystemCursor(shapes[i]);
     }
     SDL_StartTextInput(window_);
@@ -198,7 +199,7 @@ std::string SdlHost::clipboard() {
 void SdlHost::setClipboard(const std::string& text) { SDL_SetClipboardText(text.c_str()); }
 
 void SdlHost::setCursor(int shape) {
-    if (shape != cursorShown_ && shape >= 0 && shape < 6 && cursors_[shape]) {
+    if (shape != cursorShown_ && shape >= 0 && shape < 7 && cursors_[shape]) {
         SDL_SetCursor(cursors_[shape]);
         cursorShown_ = shape;
     }

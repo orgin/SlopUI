@@ -204,6 +204,11 @@ public:
     bool isModal() const { return modal_; }
     Window& titleBar(bool t) { titleBar_ = t; return *this; }
     Window& closable(bool c) { closable_ = c; return *this; }
+    /** The player may drag its right and bottom edges and its corner to resize it. */
+    Window& resizable(bool r) { resizable_ = r; return *this; }
+    /** Back to its own size. */
+    void resetSize() { userW_ = userH_ = 0; }
+    Widget* hit(float px, float py) override;
     Window& width(float w) { wantW_ = w; return *this; }
     Window& button(std::shared_ptr<Button> b);
     Window& defaultButton(std::shared_ptr<Button> b);
@@ -222,7 +227,7 @@ public:
     bool press(Ui& ui, float mx, float my, int button, int clicks) override;
     void drag(Ui& ui, float mx, float my) override;
     void release(Ui& ui, float mx, float my, int button) override;
-    int cursor(float, float) const override { return dragging_ ? Cursor::MOVE : Cursor::ARROW; }
+    int cursor(float mx, float my) const override;
     bool key(Ui& ui, int key, int mods) override;
     bool wheel(Ui&, float, float, float) override { return true; }
     void children(std::vector<Widget*>& out) override;
@@ -231,6 +236,12 @@ private:
     float titleH(Ui& ui) const;
     bool hasButtons() const;
     bool onCloseButton(Ui& ui, float mx, float my) const;
+    float minHeight(Ui& ui, float width);
+    /** The resizing edge at the point: 1 right, 2 bottom, 3 corner, 0 none. */
+    int edgeAt(float mx, float my) const;
+    bool resizable_ = false;
+    float userW_ = 0, userH_ = 0, sizeDX_ = 0, sizeDY_ = 0;
+    int sizing_ = 0;
     Text title_;
     bool modal_ = true, titleBar_ = true, closable_ = true;
     std::shared_ptr<ScrollPane> scroll_;
@@ -895,12 +906,15 @@ public:
     void draw(Ui& ui, Painter& p) override;
     bool press(Ui& ui, float mx, float my, int button, int clicks) override;
     void drag(Ui& ui, float mx, float my) override;
-    void release(Ui&, float, float, int) override { dragThumb_ = false; resizing_ = -1; }
+    void release(Ui& ui, float mx, float my, int button) override;
     bool wheel(Ui& ui, float mx, float my, float dy) override;
     bool key(Ui& ui, int key, int mods) override;
     int cursor(float mx, float my) const override;
+    /** The column shown at each position (after the player moved columns). */
+    const std::vector<int>& columnOrder() const { return colOrder_; }
 
 private:
+    void moveColumn(int from, int gap);
     /** The header separator at the point (index of the column to its right), or -1. */
     int boundaryAt(float mx, float my) const;
     void resort();
@@ -917,6 +931,10 @@ private:
     int resizing_ = -1;
     float resizeFrom_ = 0, weightA_ = 0, weightB_ = 0, lastHeadH_ = 0;
     std::vector<float> lastColX_;
+    std::vector<int> colOrder_;
+    int pressCol_ = -1, dropAt_ = -1;
+    float pressX_ = 0;
+    bool movingCol_ = false;
     std::vector<std::vector<std::string>> rows_;
     std::vector<int> order_;
     int selected_ = -1, sortColumn_ = -1, visibleRows_;

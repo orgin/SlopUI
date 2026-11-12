@@ -68,8 +68,8 @@ void Window::place(Ui& ui) {
     float top = ui.contentTop();
     float maxW = ui.width * ui.theme.s[Theme::MAX_WINDOW];
     float maxH = (ui.height - top) * ui.theme.s[Theme::MAX_WINDOW];
-    float pw = std::min(maxW, std::max(std::min(minWidth(ui), maxW), prefWidth(ui)));
-    float ph = std::min(maxH, prefHeight(ui, pw));
+    float pw = std::min(maxW, std::max(std::min(minWidth(ui), maxW), userW_ > 0 ? userW_ : prefWidth(ui)));
+    float ph = userH_ > 0 ? std::min(maxH, std::max(minHeight(ui, pw), userH_)) : std::min(maxH, prefHeight(ui, pw));
     float px = x, py = y;
     if (!placed_) {
         px = (ui.width - pw) / 2;
@@ -81,6 +81,39 @@ void Window::place(Ui& ui) {
     py = std::max(top, std::min(py, ui.height - ph));
     setBounds(std::round(px), std::round(py), std::round(pw), std::round(ph));
     layout(ui);
+}
+
+float Window::minHeight(Ui& ui, float width) {
+    float pad = ui.theme.s[Theme::PAD];
+    float bh = hasButtons() ? buttons_->prefHeight(ui, width - 2 * pad) + pad : 0;
+    return titleH(ui) + 2 * pad + bh + 24;
+}
+
+namespace {
+constexpr float EDGE = 4, GRIP = 10;
+}
+
+int Window::edgeAt(float mx, float my) const {
+    if (!resizable_ || !contains(mx, my)) {
+        return 0;
+    }
+    if (mx >= x + w - GRIP && my >= y + h - GRIP) {
+        return 3;
+    }
+    return (mx >= x + w - EDGE ? 1 : 0) | (my >= y + h - EDGE ? 2 : 0);
+}
+
+Widget* Window::hit(float px, float py) {
+    if (visible_ && edgeAt(px, py) != 0) {
+        return this;
+    }
+    return Container::hit(px, py);
+}
+
+int Window::cursor(float mx, float my) const {
+    int e = sizing_ ? sizing_ : edgeAt(mx, my);
+    return e == 3 ? Cursor::RESIZE_DIAGONAL : e == 1 ? Cursor::RESIZE_H : e == 2 ? Cursor::RESIZE_V
+           : dragging_ ? Cursor::MOVE : Cursor::ARROW;
 }
 
 void Window::layout(Ui& ui) {
@@ -137,6 +170,14 @@ void Window::draw(Ui& ui, Painter& p) {
     if (rise > 0.01f) {
         p.popClip();
     }
+    if (resizable_) {
+        bool on = sizing_ != 0 || (ui.hover() == this && edgeAt(ui.mx, ui.my) != 0);
+        argb gc = on ? t.c[Theme::ACCENT] : alpha(t.c[Theme::ACCENT_SOFT], 0.7f);
+        float gx = x + w - 2, gy = y + h - 2 + rise;
+        for (int i = 1; i <= 3; i++) {
+            line(p, gx - i * 3, gy, gx, gy - i * 3, 1, gc);
+        }
+    }
     p.setOpacity(before);
 }
 
@@ -153,6 +194,14 @@ bool Window::press(Ui& ui, float mx, float my, int button, int) {
         closePressed_ = true;
         return true;
     }
+    if (int e = edgeAt(mx, my)) {
+        sizing_ = e;
+        sizeDX_ = x + w - mx;
+        sizeDY_ = y + h - my;
+        userW_ = w;
+        userH_ = h;
+        return true;
+    }
     if (titleBar_ && my < y + titleH(ui)) {
         dragging_ = true;
         dragDX_ = mx - x;
@@ -161,7 +210,16 @@ bool Window::press(Ui& ui, float mx, float my, int button, int) {
     return true;
 }
 
-void Window::drag(Ui&, float mx, float my) {
+void Window::drag(Ui& ui, float mx, float my) {
+    if (sizing_) {
+        if (sizing_ & 1) {
+            userW_ = std::max(minWidth(ui), mx + sizeDX_ - x);
+        }
+        if (sizing_ & 2) {
+            userH_ = std::max(minHeight(ui, w), my + sizeDY_ - y);
+        }
+        return;
+    }
     if (dragging_) {
         x = mx - dragDX_;
         y = my - dragDY_;
@@ -172,6 +230,7 @@ void Window::release(Ui& ui, float mx, float my, int) {
     bool close = closePressed_ && onCloseButton(ui, mx, my);
     closePressed_ = false;
     dragging_ = false;
+    sizing_ = 0;
     if (close) {
         cancel(ui);
     }
