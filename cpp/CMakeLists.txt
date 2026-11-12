@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(SlopUI VERSION 0.2.4 LANGUAGES CXX)
+project(SlopUI VERSION 0.2.5 LANGUAGES CXX)
 # SlopUI for C++ (the Java version: ../java). slopui: the toolkit (no SDL, no GL); slopui_sdl: the SDL3/OpenGL
 # backend; slopui_demo: the test program. Add with add_subdirectory(path/to/SlopUI/cpp) and link slopui (and
 # slopui_sdl for the backend), or build here: cmake -S cpp -B build -G Ninja && ninja -C build

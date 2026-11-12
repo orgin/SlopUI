@@ -22,7 +22,7 @@ import slopui.gl.TtfFont;
  * SlopUI's test program: the toolkit over a mockup of the game. The menus open every widget, a
  * Preferences mockup, the File dialogs; Display changes the window, the UI size and the theme.
  * <pre>java -jar slopui-demo-VERSION.jar [--font FILE] [--title-font FILE] [--ui-size 0-4] [--theme N]
- *     [--open gallery|prefs|disks|load|editors]</pre>
+ *     [--open gallery|prefs|disks|load|editors] [--fullscreen]</pre>
  * Fonts are not part of SlopUI: the demo uses the TrueType files given, else a system monospaced font
  * (DejaVu Sans Mono, Noto Mono, Consolas, Courier New).
  */
@@ -252,11 +252,14 @@ public final class Demo {
         int uiSize = 0, theme = 0;
         Path font = null, title = null;
         String open = null;
+        boolean full = false;
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--ui-size") && i + 1 < args.length) {
                 uiSize = Integer.parseInt(args[++i]);
             } else if (args[i].equals("--theme") && i + 1 < args.length) {
                 theme = Integer.parseInt(args[++i]);
+            } else if (args[i].equals("--fullscreen")) {
+                full = true;
             } else if (args[i].equals("--open") && i + 1 < args.length) {
                 open = args[++i];
             } else if (args[i].equals("--font") && i + 1 < args.length) {
@@ -266,6 +269,9 @@ public final class Demo {
             }
         }
         Demo d = new Demo(font, title);
+        if (full) {
+            d.host.setFullscreen(true);
+        }
         d.host.setUiScale(uiSize);
         d.setTheme(Math.min(theme, d.themes.size() - 1));
         if (open != null) {

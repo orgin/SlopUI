@@ -48,6 +48,8 @@ int mapMods(SDL_Keymod m) {
 }  // namespace
 
 SdlHost::SdlHost(const std::string& title, int w, int h) {
+    // (never minimised when the focus goes elsewhere, fullscreen included)
+    SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         throw std::runtime_error(std::string("SDL: ") + SDL_GetError());
     }
@@ -181,6 +183,10 @@ void SdlHost::setFullscreen(bool on) {
     SDL_SetWindowFullscreenMode(window_, nullptr);      // (the desktop's mode, no decorations)
     SDL_SetWindowFullscreen(window_, on);
     SDL_SyncWindow(window_);
+    if (SDL_GetWindowFlags(window_) & SDL_WINDOW_MINIMIZED) {
+        SDL_RestoreWindow(window_);
+    }
+    SDL_RaiseWindow(window_);
     fullscreen_ = on;
     if (ui_) {
         ui_->setBarAutoHide(on);

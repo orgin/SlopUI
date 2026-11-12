@@ -36,6 +36,9 @@ public final class GlfwHost implements Host, AutoCloseable {
         }
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        // (fullscreen windows minimise themselves when they lose the focus by default; switching to fullscreen
+        // can take it for a moment, and the window disappeared)
+        glfwWindowHint(GLFW_AUTO_ICONIFY, GLFW_FALSE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -50,9 +53,12 @@ public final class GlfwHost implements Host, AutoCloseable {
         painter = new GlPainter();
         int[] shapes = {GLFW_ARROW_CURSOR, GLFW_IBEAM_CURSOR, GLFW_HAND_CURSOR, GLFW_HRESIZE_CURSOR,
                 GLFW_VRESIZE_CURSOR, GLFW_CROSSHAIR_CURSOR, GLFW_RESIZE_NWSE_CURSOR};
+        // (a shape the system lacks, e.g. the diagonal resize arrow without a cursor theme: the arrow, quietly)
+        GLFWErrorCallback before = glfwSetErrorCallback(null);
         for (int i = 0; i < shapes.length; i++) {
             cursors[i] = glfwCreateStandardCursor(shapes[i]);
         }
+        glfwSetErrorCallback(before);
     }
 
     public void setUi(Ui ui) {
@@ -157,7 +163,9 @@ public final class GlfwHost implements Host, AutoCloseable {
         }
         if (on) {
             int[] x = new int[1], y = new int[1], w = new int[1], h = new int[1];
-            glfwGetWindowPos(window, x, y);
+            if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND) {
+                glfwGetWindowPos(window, x, y);     // (Wayland has no window positions: the compositor places it)
+            }
             glfwGetWindowSize(window, w, h);
             windowed[0] = x[0];
             windowed[1] = y[0];
@@ -174,6 +182,11 @@ public final class GlfwHost implements Host, AutoCloseable {
                     Math.max(1, windowed[3]), GLFW_DONT_CARE);
         }
         fullscreen = on;
+        glfwSetWindowAttrib(window, GLFW_AUTO_ICONIFY, GLFW_FALSE);
+        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE) {
+            glfwRestoreWindow(window);
+        }
+        glfwFocusWindow(window);
         glfwSwapInterval(1);
         ui.setBarAutoHide(on);
     }
