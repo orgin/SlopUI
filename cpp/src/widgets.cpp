@@ -316,9 +316,13 @@ void ProgressBar::draw(Ui& ui, Painter& p) {
         if (fw > 0) {
             poly(p, cut(x + 1, by + 1, fw, bh - 2, 0, 0, std::min(3.0f, fw), 0), t.c[Theme::FILL_TOP], t.c[Theme::FILL_BOTTOM], by, bh);
             vgradient(p, x + 1, by + 1, fw, (bh - 2) / 2, 0x50FFFFFF, 0x00FFFFFF);
-            float sheen = float(std::fmod(ui.time * 60, double(fw + 40))) - 20;
+            // the sheen: a steady sweep along the whole bar (its own period, not the fill's width, which changes
+            // every frame), shown only over the filled part
+            float span = w + 40, sheen = float(std::fmod(ui.time * 0.7, 1.0)) * span - 20;
+            p.pushClip(x + 1, by + 1, fw, bh - 2);
             hgradient(p, x + 1 + sheen, by + 1, 10, bh - 2, 0, 0x40FFFFFF);
             hgradient(p, x + 11 + sheen, by + 1, 10, bh - 2, 0x40FFFFFF, 0);
+            p.popClip();
         }
     }
     p.popClip();
