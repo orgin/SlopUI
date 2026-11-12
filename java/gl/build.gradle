@@ -5,3 +5,4 @@ dependencies {
     api platform("org.lwjgl:lwjgl-bom:${lwjglVersion}")
     for (m in ['lwjgl', 'lwjgl-glfw', 'lwjgl-opengl', 'lwjgl-stb']) api "org.lwjgl:${m}"
 }
+jar { archiveBaseName = 'slopui-gl' }

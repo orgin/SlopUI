@@ -642,8 +642,13 @@ public final class Ui {
         return win[0];
     }
 
-    /** A question with two buttons; onYes runs on the first. */
+    /** A question with two buttons; onYes runs on the first (the default button). */
     public Window confirm(String title, String text, String yes, String no, Runnable onYes) {
+        return confirm(title, text, yes, no, true, onYes);
+    }
+
+    /** A question with two buttons; onYes runs on the first; yesDefault false: Enter presses the second. */
+    public Window confirm(String title, String text, String yes, String no, boolean yesDefault, Runnable onYes) {
         Window[] win = new Window[1];
         Button y = new Button(yes, () -> {
             close(win[0]);
@@ -651,25 +656,48 @@ public final class Ui {
         });
         Button n = new Button(no, () -> close(win[0]));
         win[0] = new Window(title, new Label(text)).width(Math.min(360, theme.font.width(text) + 20));
-        win[0].button(n).defaultButton(y);
+        if (yesDefault) {
+            win[0].button(n).defaultButton(y);
+        } else {
+            win[0].button(y).defaultButton(n);
+        }
         open(win[0]);
         return win[0];
     }
 
     /** A text asked for; onOk gets it. */
     public Window ask(String title, String label, String initial, Consumer<String> onOk) {
+        return ask(title, label, initial, "OK", "Cancel", null, onOk);
+    }
+
+    /**
+     * A text asked for, with the buttons' labels; check (may be null) gives a warning for an unusable text (null:
+     * fine), shown under the field while the window stays open; onOk gets a text that passed.
+     */
+    public Window ask(String title, String label, String initial, String okLabel, String cancelLabel,
+                      java.util.function.Function<String, String> check, Consumer<String> onOk) {
         Window[] win = new Window[1];
         TextField field = new TextField(initial);
-        Button ok = new Button("OK", () -> {
+        Label warning = new Label("").warning();
+        warning.setVisible(false);
+        Button ok = new Button(okLabel, () -> {
+            String problem = check == null ? null : check.apply(field.text());
+            if (problem != null) {
+                warning.set(problem);
+                warning.setVisible(true);
+                return;
+            }
             close(win[0]);
             onOk.accept(field.text());
         });
-        Button cancel = new Button("Cancel", () -> close(win[0]));
-        win[0] = new Window(title, Box.column(new Label(label), field)).width(260);
+        field.onChange(s -> warning.setVisible(false));
+        Button cancel = new Button(cancelLabel, () -> close(win[0]));
+        win[0] = new Window(title, Box.column(new Label(label), field, warning)).width(260);
         win[0].button(cancel).defaultButton(ok);
         open(win[0]);
         setFocus(field);
         field.selectAll();
         return win[0];
     }
+
 }

@@ -1,5 +1,6 @@
 package slopui;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -11,6 +12,7 @@ public class Button extends Widget {
     private Runnable action;
     boolean accent;
     private boolean down;
+    private BooleanSupplier enabledWhen;
 
     public Button(Supplier<String> text, Runnable action) {
         this.text = text;
@@ -24,6 +26,17 @@ public class Button extends Widget {
     public Button accent(boolean a) {
         accent = a;
         return this;
+    }
+
+    /** Enabled only while the condition holds (asked each time it is drawn or pressed). */
+    public Button enabledWhen(BooleanSupplier condition) {
+        enabledWhen = condition;
+        return this;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return super.isEnabled() && (enabledWhen == null || enabledWhen.getAsBoolean());
     }
 
     public Button onClick(Runnable r) {

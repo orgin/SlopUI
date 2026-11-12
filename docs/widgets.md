@@ -21,6 +21,7 @@ new Label("Some text that wraps.");
 new Label(() -> "Credits: " + credits);          // read each time it is drawn
 new Label("Title").title();                      // the title font, bright
 new Label("Right").align(1).colour(0xFFE8D860); // 0 left, 0.5 centre, 1 right; ARGB (0: the theme's text colour)
+new Label("Name in use").warning();             // the theme's warning colour
 ```
 ```cpp
 make<Label>("Some text that wraps.");
@@ -37,6 +38,7 @@ while pressed, and has a focus outline. Space or Enter presses it when focused.
 Button ok = new Button("OK", () -> apply());
 ok.accent(true);                                 // the default-button edge (Window.defaultButton sets it)
 ok.setEnabled(false);
+ok.enabledWhen(() -> table.selected() >= 0);     // enabled only while this holds (checked as it is drawn)
 ok.tooltip("Applies the settings");
 ```
 ```cpp

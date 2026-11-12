@@ -67,7 +67,7 @@ public:
 
     bool isVisible() const { return visible_; }
     void setVisible(bool v) { visible_ = v; }
-    bool isEnabled() const;
+    virtual bool isEnabled() const;
     void setEnabled(bool e) { enabled_ = e; }
     void setTooltip(std::string t) { tooltip = text(std::move(t)); }
     Widget* parent() const { return parent_; }
@@ -422,8 +422,15 @@ public:
 
     std::shared_ptr<Window> message(std::string title, std::string text, std::function<void()> done = {});
     std::shared_ptr<Window> confirm(std::string title, std::string text, std::string yes, std::string no,
-                                    std::function<void()> onYes);
+                                    std::function<void()> onYes, bool yesDefault = true);
     std::shared_ptr<Window> ask(std::string title, std::string label, std::string initial,
+                                std::function<void(const std::string&)> onOk);
+    /**
+     * A text asked for, with the buttons' labels; check (may be empty) gives a warning for an unusable text
+     * (empty: fine), shown under the field while the window stays open; onOk gets a text that passed.
+     */
+    std::shared_ptr<Window> ask(std::string title, std::string label, std::string initial, std::string okLabel,
+                                std::string cancelLabel, std::function<std::string(const std::string&)> check,
                                 std::function<void(const std::string&)> onOk);
 
 private:
@@ -466,6 +473,8 @@ public:
     Label& colour(argb c) { colour_ = c; return *this; }
     Label& align(float a) { align_ = a; return *this; }
     Label& title() { title_ = true; return *this; }
+    /** In the theme's warning colour. */
+    Label& warning() { warning_ = true; return *this; }
     float prefWidth(Ui& ui) override;
     float minWidth(Ui& ui) override;
     float prefHeight(Ui& ui, float width) override;
@@ -477,7 +486,7 @@ private:
     Text text_;
     argb colour_ = 0;
     float align_ = 0;
-    bool title_ = false;
+    bool title_ = false, warning_ = false;
 };
 
 /** A push button: acts on the release over it; moving off cancels. Space or Enter when focused. */
@@ -487,6 +496,9 @@ public:
     Button(std::string t, std::function<void()> action) : Button(text(std::move(t)), std::move(action)) {}
     Button& accent(bool a) { accent_ = a; return *this; }
     Button& onClick(std::function<void()> r) { action_ = std::move(r); return *this; }
+    /** Enabled only while the condition holds (asked each time it is drawn or pressed). */
+    Button& enabledWhen(std::function<bool()> c) { enabledWhen_ = std::move(c); return *this; }
+    bool isEnabled() const override { return Widget::isEnabled() && (!enabledWhen_ || enabledWhen_()); }
     void click(Ui& ui);
     float prefWidth(Ui& ui) override;
     float minWidth(Ui& ui) override;
@@ -502,6 +514,7 @@ private:
     friend class Window;
     Text text_;
     std::function<void()> action_;
+    std::function<bool()> enabledWhen_;
     bool accent_ = false, down_ = false;
 };
 

@@ -1,6 +1,6 @@
 allprojects {
     group = 'slopui'
-    version = '0.2.5'
+    version = '0.3.0'
     repositories { mavenCentral() }
 }
 
@@ -9,4 +9,22 @@ subprojects {
     java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }
     // release 21: the core can be taken in by projects on Java 21 and up
     tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
+}
+
+// Only the 5 newest versions of each jar kept in build/libs.
+subprojects {
+    tasks.withType(Jar).configureEach { t ->
+        t.doLast {
+            def dir = t.destinationDirectory.get().asFile
+            def base = t.archiveBaseName.get()
+            def ver = { f -> (f.name - (base + '-') - '.jar').tokenize('.').collect { it.isInteger() ? it as int : 0 } }
+            def jars = (dir.listFiles() ?: []).findAll { it.name ==~ /${java.util.regex.Pattern.quote(base)}-\d+(\.\d+)*\.jar/ }
+            jars.sort { a, b ->
+                def x = ver(a), y = ver(b)
+                for (int i = 0; i < Math.min(x.size(), y.size()); i++) if (x[i] != y[i]) return x[i] <=> y[i]
+                x.size() <=> y.size()
+            }
+            jars.dropRight(5).each { it.delete() }
+        }
+    }
 }

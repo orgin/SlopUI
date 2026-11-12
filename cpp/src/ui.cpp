@@ -1187,7 +1187,7 @@ std::shared_ptr<Window> Ui::message(std::string title, std::string text, std::fu
 }
 
 std::shared_ptr<Window> Ui::confirm(std::string title, std::string text, std::string yes, std::string no,
-                                    std::function<void()> onYes) {
+                                    std::function<void()> onYes, bool yesDefault) {
     auto win = std::make_shared<std::weak_ptr<Window>>();
     auto y = make<Button>(std::move(yes), [this, win, onYes] {
         if (auto w = win->lock()) {
@@ -1202,7 +1202,12 @@ std::shared_ptr<Window> Ui::confirm(std::string title, std::string text, std::st
     });
     float tw = std::min(360.0f, theme.font->width(text) + 20);
     auto w = make<Window>(std::move(title), make<Label>(std::move(text)));
-    w->width(tw).button(n).defaultButton(y);
+    w->width(tw);
+    if (yesDefault) {
+        w->button(n).defaultButton(y);
+    } else {
+        w->button(y).defaultButton(n);
+    }
     *win = w;
     open(w);
     return w;
@@ -1210,20 +1215,49 @@ std::shared_ptr<Window> Ui::confirm(std::string title, std::string text, std::st
 
 std::shared_ptr<Window> Ui::ask(std::string title, std::string label, std::string initial,
                                 std::function<void(const std::string&)> onOk) {
+    return ask(std::move(title), std::move(label), std::move(initial), "OK", "Cancel", {}, std::move(onOk));
+}
+
+std::shared_ptr<Window> Ui::ask(std::string title, std::string label, std::string initial, std::string okLabel,
+                                std::string cancelLabel, std::function<std::string(const std::string&)> check,
+                                std::function<void(const std::string&)> onOk) {
     auto win = std::make_shared<std::weak_ptr<Window>>();
     auto field = make<TextField>(std::move(initial));
-    auto ok = make<Button>("OK", [this, win, field, onOk] {
+    auto warning = make<Label>("");
+    warning->warning();
+    warning->setVisible(false);
+    std::weak_ptr<Label> ww = warning;
+    std::weak_ptr<TextField> fw = field;
+    auto ok = make<Button>(std::move(okLabel), [this, win, fw, ww, check, onOk] {
+        auto f = fw.lock();
+        if (!f) {
+            return;
+        }
+        std::string text = f->text();
+        std::string problem = check ? check(text) : std::string();
+        if (!problem.empty()) {
+            if (auto wl = ww.lock()) {
+                wl->set(problem);
+                wl->setVisible(true);
+            }
+            return;
+        }
         if (auto w = win->lock()) {
             close(w.get());
         }
-        onOk(field->text());
+        onOk(text);
     });
-    auto cancel = make<Button>("Cancel", [this, win] {
+    field->onChange([ww](const std::string&) {
+        if (auto wl = ww.lock()) {
+            wl->setVisible(false);
+        }
+    });
+    auto cancel = make<Button>(std::move(cancelLabel), [this, win] {
         if (auto w = win->lock()) {
             close(w.get());
         }
     });
-    auto w = make<Window>(std::move(title), Box::column({make<Label>(std::move(label)), field}));
+    auto w = make<Window>(std::move(title), Box::column({make<Label>(std::move(label)), field, warning}));
     w->width(260).button(cancel).defaultButton(ok);
     *win = w;
     open(w);

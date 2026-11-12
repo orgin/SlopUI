@@ -10,6 +10,7 @@ public class Label extends Widget {
     private int colour;
     private float align;
     private boolean title;
+    private boolean warning;
 
     public Label(Supplier<String> text) {
         this.text = text;
@@ -32,6 +33,12 @@ public class Label extends Widget {
 
     public Label align(float a) {
         align = a;
+        return this;
+    }
+
+    /** In the theme's warning colour. */
+    public Label warning() {
+        warning = true;
         return this;
     }
 
@@ -93,7 +100,7 @@ public class Label extends Widget {
     public void draw(Ui ui, Painter p) {
         Theme t = ui.theme;
         Font f = font(ui);
-        int c = colour != 0 ? colour : !isEnabled() ? t.c[Theme.TEXT_DISABLED] : title ? t.c[Theme.TEXT_BRIGHT] : t.c[Theme.TEXT];
+        int c = colour != 0 ? colour : warning ? t.c[Theme.WARNING] : !isEnabled() ? t.c[Theme.TEXT_DISABLED] : title ? t.c[Theme.TEXT_BRIGHT] : t.c[Theme.TEXT];
         List<String> ls = lines(f, w);
         float lh = f.lineHeight() * 1.25f;
         float py = y + Math.max(0, (h - ls.size() * lh) / 2) + (lh - f.lineHeight()) / 2;

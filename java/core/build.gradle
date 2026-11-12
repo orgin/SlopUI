@@ -3,3 +3,4 @@ jar { manifest { attributes 'Implementation-Title': 'slopui-core', 'Implementati
 
 // The built-in themes (../themes) as resources: slopui/themes/*.json
 processResources { from("${rootDir}/../themes") { into 'slopui/themes' } }
+jar { archiveBaseName = 'slopui-core' }

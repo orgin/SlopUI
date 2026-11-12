@@ -55,8 +55,21 @@ ui.confirm("Quit", "Quit the game?", "Quit", "Cancel", [&] { host.requestClose()
 ui.ask("Save Game", "Name of the save:", "my game", [&](const std::string& n) { save(n); });
 ```
 
-Each returns its window, which is already open. The buttons' labels are the ones given, apart from OK and
-Cancel; replace these helpers with your own if you need other languages.
+Each returns its window, which is already open. Fuller forms take everything as arguments, so other languages
+work:
+
+```java
+ui.confirm("Delete", "Delete \"quick\"?", "Delete", "Cancel", false, () -> delete());   // false: Enter = Cancel
+ui.ask("Rename", "New name:", "quick", "OK", "Cancel",
+       name -> name.isBlank() ? "The name can't be empty" : null,      // a warning keeps the window open
+       name -> rename(name));
+```
+```cpp
+ui.confirm("Delete", "Delete \"quick\"?", "Delete", "Cancel", [&] { del(); }, false);
+ui.ask("Rename", "New name:", "quick", "OK", "Cancel",
+       [](const std::string& n) { return n.empty() ? std::string("The name can't be empty") : std::string(); },
+       [&](const std::string& n) { rename(n); });
+```
 
 ![A message dialog](images/dialog.png)
 

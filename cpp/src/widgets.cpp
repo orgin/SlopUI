@@ -68,7 +68,7 @@ float Label::prefHeight(Ui& ui, float width) {
 void Label::draw(Ui& ui, Painter& p) {
     Theme& t = ui.theme;
     Font& f = font(ui);
-    argb c = colour_ ? colour_ : !isEnabled() ? t.c[Theme::TEXT_DISABLED] : title_ ? t.c[Theme::TEXT_BRIGHT] : t.c[Theme::TEXT];
+    argb c = colour_ ? colour_ : warning_ ? t.c[Theme::WARNING] : !isEnabled() ? t.c[Theme::TEXT_DISABLED] : title_ ? t.c[Theme::TEXT_BRIGHT] : t.c[Theme::TEXT];
     auto ls = lines(f, w);
     float lh = f.lineHeight() * 1.25f;
     float py = y + std::max(0.0f, (h - ls.size() * lh) / 2) + (lh - f.lineHeight()) / 2;
