@@ -42,7 +42,7 @@ opens the gallery), a Preferences window, editors, panes and dialogs. *Display* 
 fullscreen (F11), the UI size and the theme. Right-click the game for a context menu.
 
     # Java
-    cd java && ./gradlew :demo:dist && java -jar ../dist/slopui-demo-0.2.1.jar
+    cd java && ./gradlew :demo:dist && java -jar ../dist/slopui-demo-0.2.2.jar
     # C++
     cmake -S cpp -B build -G Ninja && ninja -C build && build/slopui_demo
 

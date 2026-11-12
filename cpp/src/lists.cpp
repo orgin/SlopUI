@@ -687,8 +687,9 @@ void Tabs::draw(Ui& ui, Painter& p) {
     }
     if (selected_ < int(tabRects_.size())) {
         auto& r = tabRects_[selected_];
-        float target = sd ? r[1] : r[0], len = sd ? r[3] : r[2];
-        if (markPos_ < 0) {
+        // (relative to the tabs: moving the window moves the mark with them; only a tab change slides it)
+        float target = sd ? r[1] - y : r[0] - x, len = sd ? r[3] : r[2];
+        if (std::isnan(markPos_)) {
             markPos_ = target;
             markLen_ = len;
         }
@@ -699,9 +700,9 @@ void Tabs::draw(Ui& ui, Painter& p) {
             ui.animating = true;
         }
         if (sd) {
-            fill(p, r[0], markPos_, 2, markLen_, t.c[Theme::ACCENT]);
+            fill(p, r[0], y + markPos_, 2, markLen_, t.c[Theme::ACCENT]);
         } else {
-            fill(p, markPos_ + 2, r[1] + r[3] - 2, markLen_ - 5, 2, t.c[Theme::ACCENT]);
+            fill(p, x + markPos_ + 2, r[1] + r[3] - 2, markLen_ - 5, 2, t.c[Theme::ACCENT]);
         }
         if (ui.isFocused(this)) {
             outline(p, cut(r[0] - 1, r[1] - 1, r[2] + 1, r[3] + 2, 3, 0, 0, 0), 1, alpha(t.c[Theme::FOCUS], 0.7f));

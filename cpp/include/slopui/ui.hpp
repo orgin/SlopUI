@@ -4,6 +4,7 @@
 // (java/core, package slopui); keep the two in step. Widgets are owned by std::shared_ptr (make them with
 // slopui::make<T>(...)); a parent owns its children, the Ui its windows, popups and background.
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -969,7 +970,7 @@ private:
     std::vector<std::u32string> titles_;
     std::vector<WidgetPtr> pages_;
     int selected_ = 0;
-    float sideWidth_ = 1e30f, markPos_ = -1, markLen_ = 0;
+    float sideWidth_ = 1e30f, markPos_ = std::numeric_limits<float>::quiet_NaN(), markLen_ = 0;
     std::vector<std::array<float, 4>> tabRects_;
 };
 

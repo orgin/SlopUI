@@ -40,7 +40,7 @@ member and file layout.
 
     # Java (Gradle needs Java 21 or newer to run)
     cd java && ./gradlew :demo:dist
-    java -jar ../dist/slopui-demo-0.2.1.jar
+    java -jar ../dist/slopui-demo-0.2.2.jar
 
     # C++ (SDL3 needed)
     cmake -S cpp -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja -C build

@@ -13,7 +13,7 @@ public class Tabs extends Widget {
     private final List<Widget> pages = new ArrayList<>();
     private int selected;
     private float sideWidth = Float.MAX_VALUE;
-    private float markPos = -1, markLen;
+    private float markPos = Float.NaN, markLen;
     private final List<float[]> tabRects = new ArrayList<>();
 
     public Tabs add(String title, Widget page) {
@@ -173,8 +173,9 @@ public class Tabs extends Widget {
         }
         if (selected < tabRects.size()) {
             float[] r = tabRects.get(selected);
-            float target = side ? r[1] : r[0], len = side ? r[3] : r[2];
-            if (markPos < 0) {
+            // (relative to the tabs: moving the window moves the mark with them; only a tab change slides it)
+            float target = side ? r[1] - y : r[0] - x, len = side ? r[3] : r[2];
+            if (Float.isNaN(markPos)) {
                 markPos = target;
                 markLen = len;
             }
@@ -185,9 +186,9 @@ public class Tabs extends Widget {
                 ui.animating = true;
             }
             if (side) {
-                Shapes.fill(p, r[0], markPos, 2, markLen, t.c[Theme.ACCENT]);
+                Shapes.fill(p, r[0], y + markPos, 2, markLen, t.c[Theme.ACCENT]);
             } else {
-                Shapes.fill(p, markPos + 2, r[1] + r[3] - 2, markLen - 5, 2, t.c[Theme.ACCENT]);
+                Shapes.fill(p, x + markPos + 2, r[1] + r[3] - 2, markLen - 5, 2, t.c[Theme.ACCENT]);
             }
             if (ui.isFocused(this)) {
                 Shapes.outline(p, Shapes.cut(r[0] - 1, r[1] - 1, r[2] + 1, r[3] + 2, 3, 0, 0, 0), 1, Shapes.alpha(t.c[Theme.FOCUS], 0.7f));
