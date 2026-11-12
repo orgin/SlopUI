@@ -328,7 +328,7 @@ public:
     float prefWidth(Ui& ui) override;
     float prefHeight(Ui& ui, float width) override;
     void draw(Ui& ui, Painter& p) override;
-    void release(Ui& ui, float mx, float my, int button) override { releaseAt(ui, mx, my); }
+    void release(Ui& ui, float mx, float my, int) override { releaseAt(ui, mx, my); }
     void releaseAt(Ui& ui, float mx, float my);
     bool wheel(Ui& ui, float mx, float my, float dy) override;
     bool key(Ui& ui, int key, int mods) override;
@@ -895,11 +895,14 @@ public:
     void draw(Ui& ui, Painter& p) override;
     bool press(Ui& ui, float mx, float my, int button, int clicks) override;
     void drag(Ui& ui, float mx, float my) override;
-    void release(Ui&, float, float, int) override { dragThumb_ = false; }
+    void release(Ui&, float, float, int) override { dragThumb_ = false; resizing_ = -1; }
     bool wheel(Ui& ui, float mx, float my, float dy) override;
     bool key(Ui& ui, int key, int mods) override;
+    int cursor(float mx, float my) const override;
 
 private:
+    /** The header separator at the point (index of the column to its right), or -1. */
+    int boundaryAt(float mx, float my) const;
     void resort();
     float rowH(Ui& ui) const;
     float headH(Ui& ui) const;
@@ -910,7 +913,10 @@ private:
     std::array<float, 2> thumb(Ui& ui) const;
     int rowAt(Ui& ui, float mx, float my) const;
     std::vector<std::string> headers_;
-    std::vector<float> weights_;
+    std::vector<float> weights_, initialWeights_;
+    int resizing_ = -1;
+    float resizeFrom_ = 0, weightA_ = 0, weightB_ = 0, lastHeadH_ = 0;
+    std::vector<float> lastColX_;
     std::vector<std::vector<std::string>> rows_;
     std::vector<int> order_;
     int selected_ = -1, sortColumn_ = -1, visibleRows_;

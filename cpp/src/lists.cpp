@@ -188,7 +188,27 @@ bool Dropdown::key(Ui& ui, int key, int) {
 // Table
 
 Table::Table(std::vector<std::string> headers, std::vector<float> weights, int visibleRows)
-    : headers_(std::move(headers)), weights_(std::move(weights)), visibleRows_(visibleRows) {}
+    : headers_(std::move(headers)), weights_(weights), initialWeights_(std::move(weights)), visibleRows_(visibleRows) {}
+
+namespace {
+constexpr float MIN_COLUMN = 16, GRIP = 3;
+}
+
+int Table::boundaryAt(float mx, float my) const {
+    if (my < y || my >= y + lastHeadH_) {
+        return -1;
+    }
+    for (size_t c = 1; c + 1 < lastColX_.size(); c++) {
+        if (std::abs(mx - lastColX_[c]) <= GRIP) {
+            return int(c);
+        }
+    }
+    return -1;
+}
+
+int Table::cursor(float mx, float my) const {
+    return resizing_ > 0 || boundaryAt(mx, my) > 0 ? Cursor::RESIZE_H : Cursor::ARROW;
+}
 
 void Table::setRows(std::vector<std::vector<std::string>> rows) {
     rows_ = std::move(rows);
@@ -317,11 +337,14 @@ void Table::draw(Ui& ui, Painter& p) {
     Skin::field(p, t, x, y, w, h, ui.isFocused(this) ? 0.6f : 0, isEnabled());
     auto cx = colX(ui);
     float hh = headH(ui);
+    lastColX_ = cx;
+    lastHeadH_ = hh;
+    int grip = resizing_ > 0 ? resizing_ : ui.isHover(this) ? boundaryAt(ui.mx, ui.my) : -1;
     size_t nc = headers_.size();
     vgradient(p, x + 1, y + 1, w - 2, hh - 1, t.c[Theme::BUTTON_TOP], t.c[Theme::BUTTON_BOTTOM]);
     fill(p, x + 1, y + hh, w - 2, 1, t.c[Theme::PANEL_BORDER]);
     for (size_t c = 0; c < nc; c++) {
-        bool on = ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
+        bool on = grip < 0 && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
         if (on) {
             vgradient(p, cx[c], y + 1, cx[c + 1] - cx[c], hh - 1, t.c[Theme::HOVER_TOP], t.c[Theme::HOVER_BOTTOM]);
         }
@@ -332,6 +355,10 @@ void Table::draw(Ui& ui, Painter& p) {
         }
         if (c > 0) {
             fill(p, cx[c], y + 2, 1, hh - 3, alpha(t.c[Theme::PANEL_BORDER], 0.7f));
+        }
+        if (c > 0 && int(c) == grip) {
+            fill(p, cx[c] - 1, y + 1, 3, hh - 1, alpha(t.c[Theme::ACCENT], 0.35f));
+            fill(p, cx[c], y + 1, 1, h - 2, alpha(t.c[Theme::ACCENT], resizing_ > 0 ? 0.8f : 0.5f));
         }
     }
     float rh = rowH(ui), top = y + hh + 1;
@@ -375,6 +402,17 @@ bool Table::press(Ui& ui, float mx, float my, int button, int clicks) {
     if (button != 0) {
         return false;
     }
+    if (int b = boundaryAt(mx, my); b > 0) {
+        if (clicks == 2) {
+            weights_ = initialWeights_;
+        } else {
+            resizing_ = b;
+            resizeFrom_ = mx;
+            weightA_ = weights_[b - 1];
+            weightB_ = weights_[b];
+        }
+        return true;
+    }
     if (mx >= x + w - ui.theme.s[Theme::SCROLLBAR] - 1 && my > y + headH(ui)) {
         dragThumb_ = true;
         dragFrom_ = my;
@@ -402,7 +440,16 @@ bool Table::press(Ui& ui, float mx, float my, int button, int clicks) {
     return true;
 }
 
-void Table::drag(Ui& ui, float, float my) {
+void Table::drag(Ui& ui, float mx, float my) {
+    if (resizing_ > 0) {
+        float sum = std::accumulate(weights_.begin(), weights_.end(), 0.0f);
+        float perWeight = (w - ui.theme.s[Theme::SCROLLBAR] - 2) / sum;
+        float minW = MIN_COLUMN / perWeight, pair = weightA_ + weightB_;
+        float a = std::clamp(weightA_ + (mx - resizeFrom_) / perWeight, minW, pair - minW);
+        weights_[resizing_ - 1] = a;
+        weights_[resizing_] = pair - a;
+        return;
+    }
     if (dragThumb_) {
         float total = rows_.size() * rowH(ui), view = viewH(ui), len = thumb(ui)[1];
         scroll_ = dragStart_ + (my - dragFrom_) * (total - view) / std::max(1.0f, view - len);

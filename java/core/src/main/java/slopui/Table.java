@@ -8,11 +8,20 @@ import java.util.function.IntConsumer;
 /**
  * Rows of text in columns (save games, disks): a header to sort by (again: the other way; numbers sort as
  * numbers), one row selected (click, arrows, Page Up/Down, Home/End), a double click or Enter activates it.
- * Column widths share the width by weight; text that doesn't fit ends in "...". Scrolls with a bar.
+ * Column widths share the width by weight; text that doesn't fit ends in "...". Dragging the separator between
+ * two headers moves width between those columns (each keeps MIN_COLUMN); a double click on it: the first widths.
+ * Scrolls with a bar.
  */
 public class Table extends Widget {
     private final String[] headers;
-    private final float[] weights;
+    private final float[] weights, initialWeights;
+    private static final float MIN_COLUMN = 16, GRIP = 3;
+    /** The boundary being dragged (column index of the column to its right; -1: none), and the drag's start. */
+    private int resizing = -1;
+    private float resizeFrom, weightA, weightB;
+    /** From the last draw, for the pointer's shape (cursor has no Ui). */
+    private float[] lastColX = new float[0];
+    private float lastHeadH;
     private final List<String[]> rows = new ArrayList<>();
     private final List<Integer> order = new ArrayList<>();
     private int selected = -1;          // a row index (rows), not a position
@@ -26,7 +35,8 @@ public class Table extends Widget {
 
     public Table(String[] headers, float[] weights, int visibleRows) {
         this.headers = headers;
-        this.weights = weights;
+        this.weights = weights.clone();
+        this.initialWeights = weights.clone();
         this.visibleRows = visibleRows;
     }
 
@@ -164,10 +174,13 @@ public class Table extends Widget {
         Skin.field(p, t, x, y, w, h, ui.isFocused(this) ? 0.6f : 0, isEnabled());
         float[] cx = colX(ui);
         float hh = headH(ui);
+        lastColX = cx;
+        lastHeadH = hh;
+        int grip = resizing > 0 ? resizing : ui.isHover(this) ? boundaryAt(ui.mx, ui.my) : -1;
         Shapes.vgradient(p, x + 1, y + 1, w - 2, hh - 1, t.c[Theme.BUTTON_TOP], t.c[Theme.BUTTON_BOTTOM]);
         Shapes.fill(p, x + 1, y + hh, w - 2, 1, t.c[Theme.PANEL_BORDER]);
         for (int c = 0; c < headers.length; c++) {
-            boolean on = ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
+            boolean on = grip < 0 && ui.isHover(this) && ui.my < y + hh && ui.mx >= cx[c] && ui.mx < cx[c + 1];
             if (on) {
                 Shapes.vgradient(p, cx[c], y + 1, cx[c + 1] - cx[c], hh - 1, t.c[Theme.HOVER_TOP], t.c[Theme.HOVER_BOTTOM]);
             }
@@ -179,6 +192,10 @@ public class Table extends Widget {
             }
             if (c > 0) {
                 Shapes.fill(p, cx[c], y + 2, 1, hh - 3, Shapes.alpha(t.c[Theme.PANEL_BORDER], 0.7f));
+            }
+            if (c > 0 && c == grip) {       // the separator being dragged or under the pointer
+                Shapes.fill(p, cx[c] - 1, y + 1, 3, hh - 1, Shapes.alpha(t.c[Theme.ACCENT], 0.35f));
+                Shapes.fill(p, cx[c], y + 1, 1, h - 2, Shapes.alpha(t.c[Theme.ACCENT], resizing > 0 ? 0.8f : 0.5f));
             }
         }
         float rh = rowH(ui), top = y + hh + 1;
@@ -237,10 +254,40 @@ public class Table extends Widget {
         return pos >= 0 && pos < order.size() ? order.get(pos) : -1;
     }
 
+    /** The header separator at the point (index of the column to its right), or -1. */
+    private int boundaryAt(float mx, float my) {
+        if (my < y || my >= y + lastHeadH) {
+            return -1;
+        }
+        for (int c = 1; c < lastColX.length - 1; c++) {
+            if (Math.abs(mx - lastColX[c]) <= GRIP) {
+                return c;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public int cursor(float mx, float my) {
+        return resizing > 0 || boundaryAt(mx, my) > 0 ? Cursor.RESIZE_H : Cursor.ARROW;
+    }
+
     @Override
     public boolean press(Ui ui, float mx, float my, int button, int clicks) {
         if (button != 0) {
             return false;
+        }
+        int b = boundaryAt(mx, my);
+        if (b > 0) {
+            if (clicks == 2) {
+                System.arraycopy(initialWeights, 0, weights, 0, weights.length);
+            } else {
+                resizing = b;
+                resizeFrom = mx;
+                weightA = weights[b - 1];
+                weightB = weights[b];
+            }
+            return true;
         }
         if (mx >= x + w - ui.theme.s[Theme.SCROLLBAR] - 1 && my > y + headH(ui)) {
             dragThumb = true;
@@ -271,6 +318,18 @@ public class Table extends Widget {
 
     @Override
     public void drag(Ui ui, float mx, float my) {
+        if (resizing > 0) {
+            float sum = 0;
+            for (float wt : weights) {
+                sum += wt;
+            }
+            float perWeight = (w - ui.theme.s[Theme.SCROLLBAR] - 2) / sum;     // UI units per weight
+            float min = MIN_COLUMN / perWeight, pair = weightA + weightB;
+            float a = Math.max(min, Math.min(pair - min, weightA + (mx - resizeFrom) / perWeight));
+            weights[resizing - 1] = a;
+            weights[resizing] = pair - a;
+            return;
+        }
         if (dragThumb) {
             float rh = rowH(ui), total = rows.size() * rh, view = viewH(ui);
             float len = thumb(ui)[1];
@@ -282,6 +341,7 @@ public class Table extends Widget {
     @Override
     public void release(Ui ui, float mx, float my, int button) {
         dragThumb = false;
+        resizing = -1;
     }
 
     @Override

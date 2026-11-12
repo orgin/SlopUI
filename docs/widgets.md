@@ -237,11 +237,14 @@ Rows of text in columns.
 | Input | Does |
 |---|---|
 | Click a header | Sorts by it; again: the other way. Numbers sort as numbers. |
+| Drag a separator between headers | Moves width between the two columns beside it (each keeps at least 16 units). The pointer shows a resize arrow there. |
+| Double click a separator | Puts the column widths back to the ones given. |
 | Click a row, Up/Down, Page Up/Down, Home/End | Selects a row. |
 | Double click, Enter | Activates the selected row (`onActivate`). |
 | Wheel, the bar | Scroll. |
 
-Columns share the width by weight, and text that doesn't fit ends in "...". `selected()` and the callbacks use
+Columns share the width by weight (resizing changes the weights, so the columns keep their shares when the
+table's width changes), and text that doesn't fit ends in "...". `selected()` and the callbacks use
 the row's index in the list you gave, whatever the sort.
 
 ```java
